@@ -18,9 +18,6 @@ weather-web/
    - Simply open `index.html` in your web browser
    - Or use a local server (recommended):
      ```bash
-     # Using Python
-     python -m http.server 8000
-     
      # Using Node.js (if you have http-server installed)
      npx http-server
      ```
