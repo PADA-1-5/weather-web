@@ -1,275 +1,174 @@
-// ============================================
-// FETCH API LEARNING TEMPLATE
-// ============================================
-// This template demonstrates how to use the Fetch API
-// Students can customize this code to practice
-
-// Get DOM elements
+// DOM элементүүдийг барьж авах
 const cityInput = document.getElementById('cityInput');
 const fetchBtn = document.getElementById('fetchBtn');
+const clearBtn = document.getElementById('clearBtn');
 const resultSection = document.getElementById('resultSection');
+const lastSearchedSpan = document.getElementById('lastSearched');
+const testApiBtn = document.getElementById('testApiBtn');
 
-// ============================================
-// EXAMPLE 1: Basic Fetch with .then()
-// ============================================
-// This is the traditional way using promises
-function fetchWithThen() {
-    fetch('https://api.example.com/data')
-        .then(response => {
-            // Check if the response is OK (status 200-299)
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            // Parse JSON response
-            return response.json();
-        })
-        .then(data => {
-            // Use the data
-            console.log('Data received:', data);
-        })
-        .catch(error => {
-            // Handle errors
-            console.error('Error:', error);
-        });
+// 9. Огноо форматлах функц
+function updateDate() {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateStr = new Date().toLocaleDateString('en-US', options);
+    const dateElement = document.getElementById('currentDate');
+    if (dateElement) dateElement.textContent = dateStr;
+}
+updateDate();
+
+// 5. LocalStorage-оос сүүлийн хайлтыг авах
+window.onload = () => {
+    const savedCity = localStorage.getItem('lastCity');
+    if (savedCity && lastSearchedSpan) {
+        lastSearchedSpan.textContent = savedCity;
+    }
+};
+
+// 10. Weather Icons болон тайлбар (WMO Code)
+const weatherInfo = {
+    0: { desc: 'Цэлмэг тэнгэр', icon: '☀️' },
+    1: { desc: 'Голдуу цэлмэг', icon: '🌤' },
+    2: { desc: 'Хагас үүлэрхэг', icon: '⛅' },
+    3: { desc: 'Үүлэрхэг', icon: '☁️' },
+    45: { desc: 'Манантай', icon: '🌫️' },
+    61: { desc: 'Бага зэргийн бороо', icon: '🌧️' },
+    63: { desc: 'Бороотой', icon: '🌧️' },
+    71: { desc: 'Бага зэргийн цас', icon: '🌨️' },
+    95: { desc: 'Аянгатай бороо', icon: '⛈️' }
+};
+
+// 2. Loading анимейшн харуулах
+function showLoading() {
+    // Өмнөх loader байгаа эсэхийг шалгаад байвал устгах
+    removeLoader();
+    resultSection.insertAdjacentHTML('afterbegin', '<div id="loader" class="loading" style="text-align: center; padding: 20px;">Уншиж байна...</div>');
 }
 
-// ============================================
-// EXAMPLE 2: Fetch with Async/Await (Recommended)
-// ============================================
-// This is the modern, more readable way
-async function fetchWithAsyncAwait(url) {
-    try {
-        // Make the fetch request
-        const response = await fetch(url);
-        
-        // Check if response is OK
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        // Parse JSON data
-        const data = await response.json();
-        
-        return data;
-    } catch (error) {
-        // Handle any errors
-        console.error('Fetch error:', error);
-        throw error;
+// Loader-ийг аюулгүй устгах функц (Таны алдааг засах гол хэсэг)
+function removeLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.remove();
     }
 }
 
-// ============================================
-// WEATHER API EXAMPLE - Using Free Open-Meteo API
-// ============================================
-// This function fetches weather data for a city
-// Open-Meteo is completely FREE and requires NO API KEY!
-// Learn more at: https://open-meteo.com/
+// 8. Алдаа барих функц
+function showError(msg) {
+    alert(`Алдаа: ${msg}`);
+    removeLoader(); // Алдаа гарсан үед loader-ийг заавал устгана
+}
 
+// Үндсэн Fetch функц
 async function fetchWeatherData(cityName) {
     try {
+        // 1. Хоосон утга шалгах
+        if (!cityName) {
+            showError("Хотын нэр оруулна уу!");
+            return;
+        }
+
         showLoading();
-        
-        // Step 1: Get city coordinates using Open-Meteo Geocoding API (free, no key needed)
-        const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
-        
-        const geocodeData = await fetchWithAsyncAwait(geocodeUrl);
-        
-        // Check if city was found
-        if (!geocodeData.results || geocodeData.results.length === 0) {
-            throw new Error(`City "${cityName}" not found. Please check the spelling.`);
+
+        // Алхам 1: Геокод авах (Хотын координатыг олох)
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`);
+        const geoData = await geoRes.json();
+
+        // 8. Буруу хотын нэр шалгах
+        if (!geoData.results || geoData.results.length === 0) {
+            throw new Error(`"${cityName}" нэртэй хот олдсонгүй.`);
         }
-        
-        const location = geocodeData.results[0];
-        const latitude = location.latitude;
-        const longitude = location.longitude;
-        const city = location.name;
-        const country = location.country || '';
-        
-        // Step 2: Get weather data using Open-Meteo Weather API (free, no key needed)
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=celsius&wind_speed_unit=ms`;
-        
-        const weatherData = await fetchWithAsyncAwait(weatherUrl);
-        
-        // Combine location and weather data
-        const combinedData = {
-            city: city,
-            country: country,
-            temperature: Math.round(weatherData.current.temperature_2m),
-            humidity: weatherData.current.relative_humidity_2m,
-            windSpeed: Math.round(weatherData.current.wind_speed_10m * 10) / 10,
-            weatherCode: weatherData.current.weather_code,
-            description: getWeatherDescription(weatherData.current.weather_code)
-        };
-        
-        // Display the weather data
-        displayWeather(combinedData);
-        
-    } catch (error) {
-        showError(`Failed to fetch weather data. ${error.message}`);
+
+        const loc = geoData.results[0];
+
+        // 4. Нэмэлт мэдээлэл татах (Даралт, Үзэгдэх орчин)
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,relative_humidity_2m,surface_pressure,visibility,wind_speed_10m,weather_code&temperature_unit=celsius`;
+
+        const weatherRes = await fetch(weatherUrl);
+        if (!weatherRes.ok) throw new Error("Цаг агаарын сервер хариу өгсөнгүй.");
+
+        const wData = await weatherRes.json();
+
+        // Өгөгдлийг дэлгэцэнд харуулах
+        renderWeatherCard(loc.name, loc.country, wData.current);
+
+        // 5. LocalStorage хадгалах
+        localStorage.setItem('lastCity', loc.name);
+        if (lastSearchedSpan) lastSearchedSpan.textContent = loc.name;
+
+        // Амжилттай болсон тул loader-ийг устгах
+        removeLoader();
+
+    } catch (err) {
+        showError(err.message);
     }
 }
 
-// Helper function to convert weather code to description
-function getWeatherDescription(code) {
-    // Weather codes from WMO (World Meteorological Organization)
-    const weatherCodes = {
-        0: 'Clear sky',
-        1: 'Mainly clear',
-        2: 'Partly cloudy',
-        3: 'Overcast',
-        45: 'Foggy',
-        48: 'Depositing rime fog',
-        51: 'Light drizzle',
-        53: 'Moderate drizzle',
-        55: 'Dense drizzle',
-        56: 'Light freezing drizzle',
-        57: 'Dense freezing drizzle',
-        61: 'Slight rain',
-        63: 'Moderate rain',
-        65: 'Heavy rain',
-        66: 'Light freezing rain',
-        67: 'Heavy freezing rain',
-        71: 'Slight snow fall',
-        73: 'Moderate snow fall',
-        75: 'Heavy snow fall',
-        77: 'Snow grains',
-        80: 'Slight rain showers',
-        81: 'Moderate rain showers',
-        82: 'Violent rain showers',
-        85: 'Slight snow showers',
-        86: 'Heavy snow showers',
-        95: 'Thunderstorm',
-        96: 'Thunderstorm with slight hail',
-        99: 'Thunderstorm with heavy hail'
-    };
-    
-    return weatherCodes[code] || 'Unknown';
-}
+// 7. Олон хотын мэдээллийг жагсааж харуулах
+function renderWeatherCard(name, country, data) {
+    const info = weatherInfo[data.weather_code] || { desc: 'Тодорхойгүй', icon: '🌈' };
 
-// ============================================
-// ALTERNATIVE: Using a Public API (No Key Required)
-// ============================================
-// For testing without an API key, you can use this example
-// with JSONPlaceholder or other public APIs
-
-async function fetchPublicData() {
-    try {
-        // Example: Fetching from JSONPlaceholder (no API key needed)
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts/1');
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        }
-        
-        const data = await response.json();
-        console.log('Public API Data:', data);
-        
-        // You can display this data in your UI
-        return data;
-        
-    } catch (error) {
-        console.error('Error fetching public data:', error);
-        throw error;
-    }
-}
-
-// ============================================
-// UI HELPER FUNCTIONS
-// ============================================
-
-function showLoading() {
-    resultSection.innerHTML = '<div class="loading">Fetching weather data</div>';
-    fetchBtn.disabled = true;
-}
-
-function showError(message) {
-    resultSection.innerHTML = `
-        <div class="error-message">
-            <strong>Error:</strong> ${message}
-            <br><br>
-            <small>Tip: Make sure you've entered a valid city name</small>
-        </div>
-    `;
-    fetchBtn.disabled = false;
-}
-
-function displayWeather(data) {
-    // Extract weather information from the combined data
-    const cityName = data.city;
-    const country = data.country;
-    const temperature = data.temperature;
-    const description = data.description;
-    const humidity = data.humidity;
-    const windSpeed = data.windSpeed;
-    
-    // Create HTML to display the weather
-    resultSection.innerHTML = `
-        <div class="weather-card">
-            <div class="weather-header">
+    const cardHtml = `
+        <div class="weather-card" style="background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 25px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2); animation: slideUp 0.6s ease; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <div class="city-name">${cityName}${country ? ', ' + country : ''}</div>
-                    <div style="color: #666; margin-top: 5px; text-transform: capitalize;">
-                        ${description}
-                    </div>
+                    <h2 style="margin: 0;">${info.icon} ${name}, ${country || ''}</h2>
+                    <p style="color: #666; margin: 5px 0;">${info.desc}</p>
                 </div>
-                <div class="temperature">${temperature}°C</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">${Math.round(data.temperature_2m)}°C</div>
             </div>
-            <div class="weather-details">
-                <div class="detail-item">
-                    <div class="detail-label">Humidity</div>
-                    <div class="detail-value">${humidity}%</div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Wind Speed</div>
-                    <div class="detail-value">${windSpeed} m/s</div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Weather Code</div>
-                    <div class="detail-value">${data.weatherCode}</div>
-                </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">
+                <div><small>Чийгшил:</small> <strong>${data.relative_humidity_2m}%</strong></div>
+                <div><small>Салхи:</small> <strong>${data.wind_speed_10m} м/с</strong></div>
+                <div><small>Даралт:</small> <strong>${Math.round(data.surface_pressure)} hPa</strong></div>
+                <div><small>Үзэгдэх орчин:</small> <strong>${(data.visibility / 1000).toFixed(1)} км</strong></div>
             </div>
         </div>
     `;
-    
-    fetchBtn.disabled = false;
+
+    // Эхний хайлт бол placeholder-ийг устгана
+    const placeholder = resultSection.querySelector('.placeholder');
+    if (placeholder) {
+        resultSection.innerHTML = '';
+    }
+
+    // Шинэ картыг хамгийн дээр нь нэмнэ
+    resultSection.insertAdjacentHTML('afterbegin', cardHtml);
 }
 
-// ============================================
-// EVENT LISTENERS
-// ============================================
+// 6. Clear товчлуур
+if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+        resultSection.innerHTML = '<div class="placeholder" style="text-align: center; color: #999; padding: 20px;">Хотын нэр оруулж хайлт хийнэ үү.</div>';
+        cityInput.value = '';
+        cityInput.focus();
+    });
+}
 
-// Handle button click
+// 3. Өөр API (JSONPlaceholder) ашиглах тест
+if (testApiBtn) {
+    testApiBtn.addEventListener('click', async () => {
+        try {
+            const res = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+            const data = await res.json();
+            const testDiv = document.getElementById('apiTestResult');
+            if (testDiv) {
+                testDiv.innerHTML = `<p style="color: blue; font-size: 0.9rem; margin-top: 10px;">API Test: ${data.title}</p>`;
+            }
+        } catch (e) {
+            console.error("Test API Error");
+        }
+    });
+}
+
+// Event Listeners
 fetchBtn.addEventListener('click', () => {
-    const city = cityInput.value.trim();
-    
-    if (city === '') {
-        showError('Please enter a city name');
-        return;
-    }
-    
-    fetchWeatherData(city);
+    fetchWeatherData(cityInput.value.trim());
+    cityInput.value = '';
 });
 
-// Handle Enter key press
-cityInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        fetchBtn.click();
-    }
-});
-
-// ============================================
-// PRACTICE EXERCISES FOR STUDENTS
-// ============================================
-// Try these challenges to practice:
-
-// 1. Add error handling for empty city input
-// 2. Add a loading spinner animation
-// 3. Fetch data from a different API (e.g., JSONPlaceholder)
-// 4. Add more weather details (pressure, visibility, etc.)
-// 5. Store the last searched city in localStorage
-// 6. Add a "Clear" button to reset the search
-// 7. Fetch weather for multiple cities and display them
-// 8. Add error handling for invalid city names
-// 9. Create a function to format the date/time
-// 10. Add icons for different weather conditions
-
+if (cityInput) {
+    cityInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            fetchBtn.click();
+        }
+    });
+}
